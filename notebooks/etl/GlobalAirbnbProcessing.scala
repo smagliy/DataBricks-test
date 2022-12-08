@@ -15,44 +15,39 @@ val pathOutput = "/FileStore/result/global"
 
 // COMMAND ----------
 
-val nameColumnToDrop = Seq("Listing Url", "Scrape ID", "Space", "Description", "Notes", "Transit", "Access", "House Rules", "Summary", "Integration", "Thumbnail Url", "Medium Url", "Picture Url", "XL Picture Url", "Market", "Smart Location", "State", "Zipcode", "Country", "Bed Type", "Weekly Price", "Monthly Price", "Square Feet", "Security Deposit", "Cleaning Fee", "Guests Included", "Extra People", "Jurisdiction Names", "Cancellation Policy", "Features", "Geolocation")
+val nameColumnToDrop = Seq("Listing Url", "Scrape ID", "Space", "Description", "Notes", "Transit", "Access", "House Rules", "Summary", "Integration", "Thumbnail Url", "Medium Url", "Picture Url", "XL Picture Url", "Market", "Smart Location", "State", "Zipcode", "Country", "Bed Type", "Weekly Price", "Monthly Price", "Square Feet", "Security Deposit", "Cleaning Fee", "Guests Included", "Extra People", "Jurisdiction Names", "Cancellation Policy", "Features", "Geolocation", "Street", "Country Code")
 
 
 var globalAirbnb = spark.read.format("csv").option("header", "true").option("sep", ";").load(pathToFiles+airbnbListinings)
-globalAirbnb  = globalAirbnb
-  .drop(nameColumnToDrop:_*)
-  .withColumn("Scraped Year", year(globalAirbnb("Last Scraped")))
 
+globalAirbnb = globalAirbnb.drop(nameColumnToDrop:_*)
+
+val columnsLowerCase = globalAirbnb.columns.map(_.toLowerCase).map(_.replace(" ","_"))
+
+globalAirbnb  = globalAirbnb
+  .toDF(columnsLowerCase:_*)
+
+globalAirbnb = globalAirbnb
+  .withColumn("scraped_year", year(globalAirbnb("last_scraped")))
+  .filter(col("city") === "Paris",
+          col("city") === "Berlin",
+          col("city") === "London")
+  
 display(globalAirbnb)
 
 // COMMAND ----------
 
-val londonGlobal = globalAirbnb.filter(col("city") === "London")
-
-londonGlobal.write.partitionBy("Scraped Year").parquet(pathOutput + "/London") 
-
-display(londonGlobal)
-
-// COMMAND ----------
-
-val berlinGlobal = globalAirbnb.filter(col("city") === "Berlin")
-
-londonGlobal.write.partitionBy("Scraped Year").parquet(pathOutput + "/Berlin")
-
-display(berlinGlobal)
-
-// COMMAND ----------
-
-val parisGlobal = globalAirbnb.filter(col("city") === "Paris")
-
-londonGlobal.write.partitionBy("Scraped Year").parquet(pathOutput + "/Paris")
-
-display(parisGlobal)
+globalAirbnb.write.partitionBy("city","scraped_year").parquet(pathOutput) 
 
 // COMMAND ----------
 
 // MAGIC %md
 // MAGIC ...
+
+// COMMAND ----------
+
+// MAGIC %sh
+// MAGIC rm -r /dbfs/FileStore/result
 
 // COMMAND ----------
 
